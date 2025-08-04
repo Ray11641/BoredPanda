@@ -10,3 +10,7 @@ Needs the following python libraries:
 ```
 NLTK (pip install nltk)
 ```
+
+# Declarations
+
+The pdf files in the directory "pdf_files" are openly available books sourced from Project Gutenberg and ArXiv. I do not own any rights to those pdf files.
