@@ -1,0 +1,26 @@
+[project]
+name = "boredpanda"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "nltk>=3.9.1",
+  "plotly>=6.2.0",
+  "torch>=2.7.0",
+  "torchvision>=0.22.0",
+]
+
+# Comment these if you have a GPU, I don't have one right now
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu" },
+]
+torchvision = [
+    { index = "pytorch-cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

@@ -7,9 +7,6 @@ Particularly, BoredPanda project is aimed to create a bot that gives a summary t
 
 Needs the following python libraries:
 
-```
-NLTK (pip install nltk)
-```
 
 # Declarations
 
