@@ -1,4 +1,4 @@
- """
+"""
 This is base class for a bot 
 
 """
@@ -6,6 +6,7 @@ This is base class for a bot
 import os
 import random
 import typing
+from typing import List
 
 import nltk
 import numpy as np
@@ -54,5 +55,5 @@ class BaseBot():
         
         return S_lemmas
     
-    @staticmethod
-    def 
+    # @staticmethod
+    # def 
