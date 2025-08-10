@@ -20,8 +20,8 @@ class AttentionHead(nn.Module):
     A simple AttentionHead
     """
     def __init__(self,
-                  d_embed: int,
-                    d_head: int) -> None:
+                 d_embed: int,
+                 d_head: int) -> None:
         super().__init__()
         self.Q = nn.Linear(d_embed, d_head)
         self.K = nn.Linear(d_embed, d_head)
@@ -36,18 +36,18 @@ class AttentionHead(nn.Module):
           key-value (K-V) pairs
         """
         n_k = Q.shape(-1)
-            prod = torch.bmm(Q, K.transpose(1, 2)) / math.sqrt(n_k)
+        prod = torch.bmm(Q, K.transpose(1, 2)) / math.sqrt(n_k)
         weights = nn.functional.softmax(prod, dim = -1)
         return torch.bmm(weights, V)
 
     def forward(self, 
-                h: torch.Tensor) -> List[torch.Tensor]:
-        attn_outs = self.scaled_dot_product_attention(
-                                                      Q = self.Q(h),
-                                                      K = self.K(h),
-                                                      V = self.V(h)
-                                                     )
-        return attn_outs
+                x: torch.Tensor) -> List[torch.Tensor]:
+        x = self.scaled_dot_product_attention(
+                                              Q = self.Q(x),
+                                              K = self.K(x),
+                                              V = self.V(x)
+                                             )
+        return x
 
 class MultiHeadAttention(nn.Module):
     """
@@ -64,21 +64,48 @@ class MultiHeadAttention(nn.Module):
         self.multihead_linear = nn.Linear(d_embed, d_embed)
 
     def forward(self,
-                h: torch.Tensor) -> torch.Tensor:
-        multihead_out = torch.cat([head(h) for head in self.heads], dim = -1)
-        return self.multihead_linear(multihead_out)
+                x: torch.Tensor) -> torch.Tensor:
+        x = torch.cat([head(x) for head in self.heads], dim = -1)
+        return self.multihead_linear(x)
+
+class FeedForward(nn.Module):
+    def __init__(self,
+                 d_in: int,
+                 d_hidden: int,
+                 droput_prob: float) -> None:
+        super().__init__()
+        self.l1 = nn.Linear(d_in, d_hidden)
+        self.l2 = nn.Linear(d_hidden, d_in)
+        self.gelu = nn.GELU()
+        self.dropout = nn.Dropout(droput_prob)
+
+    def forward(self,
+                x: torch.Tensor) -> torch.Tensor:
+        x = self.l1(x)
+        x = self.gelu(x)
+        x = self.l2(x)
+        return self.dropout(x)
 
 class base_nn(nn.Module):
     """f
     create a base class for constructing custom transformer
     
     """
-    def __init__(self) -> None:
+    def __init__(self,
+                 name: str) -> None:
         super().__init__()
+        self.name = name
 
     @classmethod
-    def encoder(cls):
-        
+    def encoder(cls, config: Dict[int]):
+        e = cls(config["name"])
+        e.norm_1 = nn.LayerNorm(config["hidden_size"])
+        e.norm_2 = nn.LayerNorm(config["hidden_size"])
+        e.attention = MultiHeadAttention(config["d_embed"],
+                                         config["d_head"],
+                                         config["n_heads"])
+        e.feedforward = FeedForward(config["d_embed"],
+                                    )
 
     @classmethod
     def decoder(cls):
