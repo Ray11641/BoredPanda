@@ -16,7 +16,7 @@ This repository is to save all my implementations of natural language processing
 #1: PDFs are downloaded from Arxiv. I do not own any articles other than my own. Hence I am not going to upload them to this repository.
 #2: Neural Network training process is going to be extremely slow, if you need weights (parameters), you hafta wait!
 #3: I used Tensorflow and Chainer[^1], and not PyTorch. This technically is first large project with PyTorch. I am using PyTorch due to Chainer, and might write the implementations in Chainer.
-[^1]: If you don't know Chainer, you should check about it! The Define-by-run is because of them and the library is awesome. 
+[^1]: If you don't know Chainer, you should check about it! The Define-by-run is because of them and the library is awesome. Link: https://chainer.org/ 
 
 ## Requirements
 
