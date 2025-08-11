@@ -29,7 +29,8 @@ class AttentionHead(nn.Module):
 
     def scaled_dot_product_attention(Q: torch.Tensor,
                                      K: torch.Tensor,
-                                     V: torch.Tensor
+                                     V: torch.Tensor,
+                                     mask: torch.Tensor = None
                                      ) -> torch.Tensor:
         """
         Compute the scaled dot product attention for given query (Q), and
@@ -37,15 +38,21 @@ class AttentionHead(nn.Module):
         """
         n_k = Q.shape(-1)
         prod = torch.bmm(Q, K.transpose(1, 2)) / math.sqrt(n_k)
+        if mask is not None:
+            prod.masked_fill(mask == 0, -float("inf"))
         weights = nn.functional.softmax(prod, dim = -1)
         return torch.bmm(weights, V)
 
     def forward(self, 
-                x: torch.Tensor) -> List[torch.Tensor]:
+                x_q: torch.Tensor,
+                x_k: torch.Tensor,
+                x_v: torch.Tensor,
+                mask: torch.Tensor = None) -> List[torch.Tensor]:
         x = self.scaled_dot_product_attention(
-                                              Q = self.Q(x),
-                                              K = self.K(x),
-                                              V = self.V(x)
+                                              Q = self.Q(x_q),
+                                              K = self.K(x_k),
+                                              V = self.V(x_v),
+                                              mask = mask
                                              )
         return x
 
@@ -59,13 +66,16 @@ class MultiHeadAttention(nn.Module):
                  n_heads: int) -> None:
         super()._init__()
         # raise error if d_embed != d_head*n_heads
-        assert d_embed == d_head*n_heads
+        assert d_embed == d_head*n_heads, f"ensure head output dimension ({d_head}) =  embedding dimension / n heads, ({d_embed / n_heads})"
         self.heads = nn.ModuleList([AttentionHead(d_embed, d_head) for _ in range(n_heads)])
         self.multihead_linear = nn.Linear(d_embed, d_embed)
 
     def forward(self,
-                x: torch.Tensor) -> torch.Tensor:
-        x = torch.cat([head(x) for head in self.heads], dim = -1)
+                x_q: torch.Tensor,
+                x_k: torch.Tensor,
+                x_v: torch.Tensor,
+                mask: torch.Tensor = None) -> torch.Tensor:
+        x = torch.cat([head(x_q, x_k, x_v, mask) for head in self.heads], dim = -1)
         return self.multihead_linear(x)
 
 class FeedForward(nn.Module):
@@ -87,7 +97,7 @@ class FeedForward(nn.Module):
         return self.dropout(x)
 
 class base_nn(nn.Module):
-    """f
+    """
     create a base class for constructing custom transformer
     
     """
@@ -98,18 +108,60 @@ class base_nn(nn.Module):
 
     @classmethod
     def encoder(cls, config: Dict[int]):
+        """
+        custom constructor for encoder
+        """
         e = cls(config["name"])
-        e.norm_1 = nn.LayerNorm(config["hidden_size"])
-        e.norm_2 = nn.LayerNorm(config["hidden_size"])
+        e.norm_1 = nn.LayerNorm(config["d_embed"])
+        e.norm_2 = nn.LayerNorm(config["d_embed"])
         e.attention = MultiHeadAttention(config["d_embed"],
                                          config["d_head"],
                                          config["n_heads"])
         e.feedforward = FeedForward(config["d_embed"],
-                                    )
-
+                                    config["d_hidden"],
+                                    config["dropout_prob"])
+        
+        def forward(x: torch.Tensor) -> torch.Tensor:
+            """ call because I use Tensorflow more than PyTorch """
+            x = e.norm_1(x)
+            x = x + e.attention(x)
+            x = x + e.feedforward(e.norm_2(x))
+            return x
+        e.forward = forward
+        return e
+    
     @classmethod
-    def decoder(cls):
-        pass
-
+    def decoder(cls, config: Dict[int]):
+        """
+        custom constructor for decoder 
+        """
+        d = cls(config.["name"])
+        d.norm_1 = nn.LayerNorm(config["d_embed"])
+        d.norm_2 = nn.LayerNorm(config["d_embed"])
+        d.norm_e = nn.LayerNorm(config["d_embed"])
+        d.norm_3 = nn.LayerNorm(config["d_embed"])
+        d.attention_1 = MultiHeadAttention(config["d_embed"],
+                                         config["d_head"],
+                                         config["n_heads"])
+        d.attention_2 = MultiHeadAttention(config["d_embed"],
+                                         config["d_head"],
+                                         config["n_heads"])
+        d.feedforward = FeedForward(config["d_embed"],
+                                    config["d_hidden"],
+                                    config["dropout_prob"])
+        
+        def forward(x: torch.Tensor,
+                    e_out: torch.Tensor,
+                    mask: torch.Tensor) -> torch.Tensor:
+            x = d.norm_1(x)
+            x = x + d.attention_1(x, x, x, mask)
+            x = d.norm_2(x) # outputs of encoder need to be normalised
+            e_out = d.norm_e(e_out)
+            x = x + d.attention_2(e_out, e_out, x, mask)
+            x = x + d.feedforward(d.norm_3(x))
+            return x
+        
+        d.forward = forward
+        return d
 
     
